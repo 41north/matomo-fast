@@ -1,4 +1,6 @@
-<img align="center" width="300px" src="https://matomo.org/wp-content/themes/website-child/assets/img/media/matomo.png" alt="Matomo logo">
+<p align="center">
+  <img width="300px" src="https://matomo.org/wp-content/themes/website-child/assets/img/media/matomo.png" alt="Matomo logo">
+</p>
 
 <h1 align="center">Matomo FAST! 💨💨💨</h1>
 
