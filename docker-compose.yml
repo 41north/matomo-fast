@@ -1,0 +1,71 @@
+version: "3.8"
+
+volumes:
+  matomo-data:
+    driver: local
+
+  mysql-data:
+    driver: local
+
+services:
+  traefik:
+    image: traefik:v2.3.0
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+      # - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ./conf/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./conf/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./conf/traefik/acme.json:/acme.json
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - matomo-data:/var/www/html
+      - ./conf/nginx:/etc/nginx
+    links:
+      - matomo
+    labels:
+      traefik.enable: true
+      traefik.http.routers.nginx-https.entrypoints: websecure
+      traefik.http.routers.nginx-https.rule: Host(`${DOMAIN}`)
+      traefik.http.routers.nginx-https.middlewares: compression@file, security@file
+      traefik.http.routers.nginx-https.tls: true
+      traefik.http.routers.nginx-https.tls.certresolver: letsencrypt
+
+  mariadb:
+    image: mariadb:10.5-focal
+    restart: unless-stopped
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "1"
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DB}
+    labels:
+      traefik.enable: false
+
+  matomo:
+    image: matomo:3-fpm-alpine
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    volumes:
+      - matomo-data:/var/www/html
+    environment:
+      MATOMO_DATABASE_HOST: mariadb
+      MATOMO_DATABASE_TABLES_PREFIX: ${MYSQL_TABLE_PREFIX}
+      MATOMO_DATABASE_USERNAME: ${MYSQL_USER}
+      MATOMO_DATABASE_PASSWORD: ${MYSQL_PASSWORD}
+      MATOMO_DATABASE_DBNAME: ${MYSQL_DB}
+    labels:
+      traefik.enable: false
